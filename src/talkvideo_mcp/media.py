@@ -26,7 +26,7 @@ async def _stop_process(process: Process) -> None:
     except ProcessLookupError:
         pass
     try:
-        await asyncio.wait_for(process.wait(), 2)
+        await asyncio.wait_for(process.wait(), 0.5)
     except TimeoutError:
         pass
     # A descendant may hold the pipes open even after the direct child exits.
@@ -34,7 +34,7 @@ async def _stop_process(process: Process) -> None:
         os.killpg(process.pid, signal.SIGKILL)
     except ProcessLookupError:
         pass
-    await process.wait()
+    await asyncio.wait_for(process.wait(), 2)
 
 
 async def run_bounded(
@@ -82,6 +82,32 @@ async def run_bounded(
         asyncio.create_task(read_output(process.stdout, max_stdout)),
         asyncio.create_task(read_output(process.stderr, 8192)),
     ]
+
+    async def discard_output(stream: asyncio.StreamReader | None) -> None:
+        if stream is not None:
+            while await stream.read(64 * 1024):
+                pass
+
+    async def cleanup() -> None:
+        for task in tasks:
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        # A capped reader has stopped consuming. Drain/discard before waiting for exit,
+        # otherwise asyncio can wait forever on a paused, full pipe after SIGKILL.
+        drains = [
+            asyncio.create_task(discard_output(process.stdout)),
+            asyncio.create_task(discard_output(process.stderr)),
+        ]
+        try:
+            await _stop_process(process)
+            await asyncio.gather(*drains)
+        finally:
+            for drain in drains:
+                if not drain.done():
+                    drain.cancel()
+            await asyncio.gather(*drains, return_exceptions=True)
+
     try:
         async with asyncio.timeout(wall_seconds):
             await asyncio.gather(*tasks)
@@ -105,11 +131,20 @@ async def run_bounded(
             "Use a shorter diagnostic preview or inspect local tool compatibility.",
         ) from exc
     finally:
-        await _stop_process(process)
-        for task in tasks:
-            if not task.done():
-                task.cancel()
-        await asyncio.gather(*tasks, return_exceptions=True)
+        try:
+            async with asyncio.timeout(4):
+                await cleanup()
+        except TimeoutError as exc:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            raise TalkVideoError(
+                "process_cleanup_timeout",
+                "The OS did not finish local process cleanup within its bounded deadline.",
+                "Stop further jobs and inspect the local process state; no output is accepted.",
+                needs_user_action=True,
+            ) from exc
 
 
 class ProbeStream(BaseModel):

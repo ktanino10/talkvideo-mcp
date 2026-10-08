@@ -11,7 +11,6 @@ from pathlib import Path
 
 import anyio
 from mcp.server.stdio import stdio_server
-from pydantic import ValidationError
 
 from talkvideo_mcp import __version__
 from talkvideo_mcp.engine import Engine
@@ -135,6 +134,6 @@ def main() -> None:
     except TalkVideoError as exc:
         print(exc.problem.model_dump_json(), file=sys.stderr)
         raise SystemExit(2) from None
-    except (OSError, ValidationError) as exc:
+    except Exception as exc:
         logging.getLogger(__name__).error("cli_failed type=%s", type(exc).__name__)
         raise SystemExit(2) from None

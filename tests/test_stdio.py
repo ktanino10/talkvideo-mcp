@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 from mcp import Client, StdioServerParameters
 
+from talkvideo_mcp.media import media_tools
 from talkvideo_mcp.models import RevisionRef
 from talkvideo_mcp.revisions import load_revision, record_review, review_subject
 from talkvideo_mcp.storage import LocalStore
@@ -185,3 +186,34 @@ async def test_repository_mcp_config_runs_via_real_sdk(tmp_path):
         capabilities = await call(client, "talkvideo_get_capabilities")
         assert not capabilities["diagnostic_audio"]["available"]
         assert not capabilities["uploads"]
+
+
+@pytest.mark.skipif(media_tools() is None, reason="Local FFmpeg/ffprobe not installed")
+async def test_native_video_jobs_require_both_matching_preview_reviews(tmp_path):
+    root = tmp_path / "output"
+    async with connection(root) as client:
+        revision = await prepared_revision(client, "synthetic diagnostic pattern " * 3)
+        ref = revision["ref"]
+        fixture_review(root, ref, "script")
+        audio = await call(client, "talkvideo_start_audio_job", {"ref": ref})
+        assert (await wait_job(client, audio["job_id"]))["status"] == "succeeded"
+        preview = await call(client, "talkvideo_start_video_job", {"ref": ref})
+        assert (await wait_job(client, preview["job_id"]))["status"] == "succeeded"
+        full_video = await call(client, "talkvideo_start_video_job", {"ref": ref, "stage": "full"})
+        assert full_video["status"] == "awaiting_review"
+        fixture_review(root, ref, "audio_preview")
+        still_waiting = await call(client, "talkvideo_resume_job", {"job_id": full_video["job_id"]})
+        assert still_waiting["status"] == "awaiting_review"
+        fixture_review(root, ref, "video_preview")
+        full_audio = await call(client, "talkvideo_start_audio_job", {"ref": ref, "stage": "full"})
+        assert (await wait_job(client, full_audio["job_id"]))["status"] == "succeeded"
+        await call(client, "talkvideo_resume_job", {"job_id": full_video["job_id"]})
+        assert (await wait_job(client, full_video["job_id"]))["status"] == "succeeded"
+        inspected = await call(client, "talkvideo_inspect_output", {"ref": ref})
+        assert {item["path"] for item in inspected["artifacts"]} >= {
+            "preview.mp4",
+            "result.mp4",
+            "preview.wav",
+            "narration.wav",
+        }
+        assert not inspected["lip_sync_assessed"]

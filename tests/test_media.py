@@ -26,6 +26,16 @@ async def test_subprocess_output_and_time_are_bounded():
         await run_bounded([sys.executable, "-c", "import time; time.sleep(10)"], wall_seconds=0.05)
 
 
+async def test_flooding_sigterm_resistant_child_keeps_cleanup_bounded():
+    child = (
+        "import os,signal; signal.signal(signal.SIGTERM,signal.SIG_IGN)\n"
+        "while True: os.write(1,b'x'*65536)\n"
+    )
+    async with asyncio.timeout(8):
+        with pytest.raises(TalkVideoError, match="process_output_limit"):
+            await run_bounded([sys.executable, "-c", child], max_stdout=32, wall_seconds=20)
+
+
 async def test_cancel_reaps_child(monkeypatch):
     processes = []
     started = asyncio.Event()

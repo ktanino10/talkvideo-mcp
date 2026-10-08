@@ -592,7 +592,7 @@ class Engine:
             logger.error("worker_failed: durable state requires recovery")
 
     async def _work(self) -> None:
-        while not self._closing:
+        while not self._closing and not self._worker_failed:
             job = next((item for item in self.jobs.values() if item.status == "queued"), None)
             if job is None:
                 return
@@ -657,6 +657,8 @@ class Engine:
             )
             self._save_job(job)
         except TalkVideoError as exc:
+            if exc.problem.code == "process_cleanup_timeout":
+                self._worker_failed = True
             job.status = "needs_user_action" if job.submission_pending else "failed"
             job.problem_code = (
                 "ambiguous_submission" if job.submission_pending else exc.problem.code

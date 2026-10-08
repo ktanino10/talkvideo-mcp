@@ -40,3 +40,24 @@ def test_sdk_log_records_do_not_expose_input_or_tracebacks():
         "talkvideo_mcp.server", logging.ERROR, "server.py", 5, "tool_failed type=OSError", (), None
     )
     assert "type=OSError" in SafeLogFormatter().format(record)
+
+
+def test_malformed_stdio_input_does_not_leak_private_content(tmp_path):
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "talkvideo_mcp",
+            "serve",
+            "--root",
+            str(tmp_path / "output"),
+        ],
+        input='{"jsonrpc":"2.0","id":1,"method":31,"params":{"script":"DO_NOT_LOG_TEST_SCRIPT"}}\n',
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    assert "DO_NOT_LOG_TEST_SCRIPT" not in completed.stderr
+    assert "DO_NOT_LOG_TEST_SCRIPT" not in completed.stdout
+    assert not (tmp_path / "output").exists()
