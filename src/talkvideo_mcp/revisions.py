@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 
-from talkvideo_mcp.audio import parse_wav, validate_settings
+from talkvideo_mcp.audio import parse_source_wav, parse_wav, validate_settings
 from talkvideo_mcp.errors import TalkVideoError
 from talkvideo_mcp.models import (
     Artifact,
@@ -85,6 +85,37 @@ def verified_artifact(store: LocalStore, revision: Revision, artifact: Artifact)
                 "artifact_integrity",
                 "The WAV frame metadata does not match its contents.",
                 "Inspect the revision; do not resume changed artifacts.",
+                needs_user_action=True,
+            )
+    if artifact.normalization is not None:
+        normalization = artifact.normalization
+        expected_raw = "raw/" + artifact.path.rsplit("/", 1)[-1]
+        if (
+            not artifact.path.startswith("chunks/")
+            or normalization.raw_path != expected_raw
+            or normalization.normalized_sha256 != artifact.sha256
+            or normalization.normalized != artifact.wav
+        ):
+            raise TalkVideoError(
+                "artifact_integrity",
+                "Audio normalization provenance does not match this chunk.",
+                "Preserve the source and normalized audio; do not overwrite either.",
+                needs_user_action=True,
+            )
+        raw = store.read_bytes(revision_path(revision.ref, normalization.raw_path))
+        raw_info, _ = parse_source_wav(raw)
+        if digest_bytes(raw) != normalization.raw_sha256 or raw_info != normalization.raw:
+            raise TalkVideoError(
+                "artifact_integrity",
+                "Raw audio hash/frame metadata differs.",
+                "Preserve the revision; do not regenerate missing or changed raw sources.",
+                needs_user_action=True,
+            )
+        if normalization.method == "identity" and raw != data:
+            raise TalkVideoError(
+                "artifact_integrity",
+                "Identity normalization changed source bytes.",
+                "Inspect this revision's provenance before continuing.",
                 needs_user_action=True,
             )
     return data

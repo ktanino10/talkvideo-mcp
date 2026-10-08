@@ -19,6 +19,8 @@ MAX_REVISIONS = 200
 MAX_QUEUED_JOBS = 8
 MAX_ATTEMPTS = 3
 PREVIEW_CHUNKS = 3
+MAX_PREVIEW_SECONDS = 30
+OFFICIAL_PREVIEW_CODEPOINTS = 80
 
 Slug = Annotated[str, Field(pattern=r"^[a-z0-9][a-z0-9-]{0,63}$")]
 CueId = Annotated[str, Field(pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_-]{0,39}$")]
@@ -38,11 +40,12 @@ JobStatus = Literal[
     "cancelled",
     "interrupted",
     "needs_user_action",
+    "deferred",
 ]
 
 
 class Model(BaseModel):
-    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+    model_config = ConfigDict(extra="forbid", validate_assignment=True, hide_input_in_errors=True)
 
 
 def digest_bytes(value: bytes) -> str:
@@ -95,9 +98,41 @@ class CueInput(Model):
 
 
 class ScriptInput(Model):
-    cues: list[CueInput] = Field(min_length=1, max_length=MAX_CUES)
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        json_schema_extra={
+            "oneOf": [
+                {"required": ["cues"], "properties": {"cues": {"type": "array"}}},
+                {"required": ["script_file"], "properties": {"script_file": {"type": "string"}}},
+            ]
+        },
+    )
+    cues: list[CueInput] | None = Field(
+        default=None, min_length=1, max_length=MAX_CUES, exclude_if=lambda value: value is None
+    )
+    script_file: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=255,
+        description="User-designated UTF-8 file relative to the operator-configured input root.",
+        exclude_if=lambda value: value is None,
+    )
     normalization: Literal["none", "NFC"] = "none"
     limits: ChunkLimits = Field(default_factory=ChunkLimits)
+
+    @model_validator(mode="after")
+    def one_source(self) -> ScriptInput:
+        if (self.cues is None) == (self.script_file is None):
+            raise ValueError("Provide exactly one of cues or script_file.")
+        return self
+
+
+class ScriptFileSource(Model):
+    relative_path: str
+    sha256: Digest
+    size_bytes: int
+    encoding: Literal["utf-8"] = "utf-8"
 
 
 class Chunk(Model):
@@ -131,6 +166,9 @@ class PreparedScript(Model):
     total_codepoints: int
     total_utf8_bytes: int
     plan_digest: Digest
+    source_file: ScriptFileSource | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
 
 
 class AudioSettings(Model):
@@ -206,16 +244,47 @@ class WavInfo(Model):
     duration_seconds: float
 
 
+class RawWavInfo(Model):
+    sample_rate: int
+    channels: int
+    bits_per_sample: int
+    encoding: Literal["pcm", "float"]
+    frames: int
+    duration_seconds: float
+
+
+class AudioNormalization(Model):
+    raw_path: str
+    raw_sha256: Digest
+    normalized_sha256: Digest
+    raw: RawWavInfo
+    normalized: WavInfo
+    method: Literal["identity", "pcm_rewrap", "ffmpeg_pcm_s16le"]
+
+
+class VideoDecodeEvidence(Model):
+    decoded_frames: int
+    frame_rate: str
+    time_base: str
+    decoded_end_seconds: float
+    source_audio_seconds: float
+    average_frame_rate: str = ""
+    aac_priming_samples: int = 1024
+
+
 class Artifact(Model):
     path: str
     sha256: Digest
     size_bytes: int
     media_type: str
-    diagnostic_only: Literal[True] = True
+    diagnostic_only: bool = True
     wav: WavInfo | None = None
     source_digest: Digest
     reused_from: RevisionRef | None = None
     input_artifacts: dict[str, Digest] = Field(default_factory=dict)
+    normalization: AudioNormalization | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
 
 
 class Timing(Model):
@@ -252,7 +321,9 @@ class Job(Model):
     problem_code: str | None = None
     next_action: str
     needs_user_action: bool = False
-    diagnostic_only: Literal[True] = True
+    diagnostic_only: bool = True
+    retrieval_pending: bool = False
+    retry_not_before: float | None = Field(default=None, ge=0, allow_inf_nan=False)
 
 
 class ReviewReceipt(Model):
@@ -271,6 +342,18 @@ class BackendCapability(Model):
     diagnostic_only: bool
     reason: str
     next_action: str
+    implemented: bool = False
+    configured: bool = False
+    authorization_status: str = "not_checked"
+    live_verified: bool = False
+    execution_mode: Literal["disabled", "diagnostic", "mock", "live"] = "disabled"
+
+
+class FileInputCapability(Model):
+    available: bool
+    max_bytes: int = MAX_TEXT_BYTES
+    encoding: Literal["utf-8"] = "utf-8"
+    next_action: str
 
 
 class Capabilities(Model):
@@ -281,6 +364,7 @@ class Capabilities(Model):
     real_person_lip_sync: BackendCapability
     diagnostic_audio: BackendCapability
     diagnostic_video: BackendCapability
+    script_file_input: FileInputCapability
     provider_limits_verified: Literal[False] = False
     host_limits: dict[str, int]
     normalization_default: Literal["none"] = "none"
@@ -288,6 +372,9 @@ class Capabilities(Model):
     review_authority: str
     model_notes: list[str]
     uploads: Literal[False] = False
+    external_text_transmission_enabled: bool = False
+    official_api_documented_text_limit: Literal[1000] = 1000
+    official_api_account_limits_verified: Literal[False] = False
     support_url: str
 
 
@@ -299,6 +386,7 @@ class Inspection(Model):
     total: int
     next_offset: int | None
     timings: dict[Stage, list[Timing]]
+    video_decode: dict[str, VideoDecodeEvidence] = Field(default_factory=dict)
     verified: Literal["sha256_and_file_structure"] = "sha256_and_file_structure"
     perceptual_quality_assessed: Literal[False] = False
     lip_sync_assessed: Literal[False] = False

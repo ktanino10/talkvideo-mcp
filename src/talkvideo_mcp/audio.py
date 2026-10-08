@@ -7,7 +7,13 @@ from collections.abc import Sequence
 from typing import Protocol
 
 from talkvideo_mcp.errors import TalkVideoError
-from talkvideo_mcp.models import MAX_AUDIO_SECONDS, MAX_FILE_BYTES, AudioSettings, WavInfo
+from talkvideo_mcp.models import (
+    MAX_AUDIO_SECONDS,
+    MAX_FILE_BYTES,
+    AudioSettings,
+    RawWavInfo,
+    WavInfo,
+)
 from talkvideo_mcp.text import graphemes
 
 
@@ -20,7 +26,7 @@ def invalid_wav() -> TalkVideoError:
     )
 
 
-def parse_wav(data: bytes) -> tuple[WavInfo, bytes]:
+def wave_chunks(data: bytes) -> tuple[bytes, bytes]:
     if (
         len(data) < 44
         or len(data) > MAX_FILE_BYTES
@@ -30,9 +36,13 @@ def parse_wav(data: bytes) -> tuple[WavInfo, bytes]:
     ):
         raise invalid_wav()
     offset = 12
-    fmt: tuple[int, int, int, int, int, int] | None = None
+    fmt: bytes | None = None
     pcm: bytes | None = None
+    chunks = 0
     while offset < len(data):
+        chunks += 1
+        if chunks > 1024:
+            raise invalid_wav()
         if offset + 8 > len(data):
             raise invalid_wav()
         chunk = data[offset : offset + 4]
@@ -41,9 +51,9 @@ def parse_wav(data: bytes) -> tuple[WavInfo, bytes]:
         if offset + size + size % 2 > len(data):
             raise invalid_wav()
         if chunk == b"fmt ":
-            if fmt is not None or size != 16:
+            if fmt is not None:
                 raise invalid_wav()
-            fmt = struct.unpack_from("<HHIIHH", data, offset)
+            fmt = data[offset : offset + size]
         elif chunk == b"data":
             if pcm is not None:
                 raise invalid_wav()
@@ -51,7 +61,14 @@ def parse_wav(data: bytes) -> tuple[WavInfo, bytes]:
         offset += size + size % 2
     if fmt is None or not pcm:
         raise invalid_wav()
-    encoding, channels, rate, byte_rate, block_align, bits = fmt
+    return fmt, pcm
+
+
+def parse_wav(data: bytes) -> tuple[WavInfo, bytes]:
+    fmt, pcm = wave_chunks(data)
+    if len(fmt) != 16:
+        raise invalid_wav()
+    encoding, channels, rate, byte_rate, block_align, bits = struct.unpack("<HHIIHH", fmt)
     width = bits // 8
     if (
         encoding != 1
@@ -80,6 +97,52 @@ def parse_wav(data: bytes) -> tuple[WavInfo, bytes]:
         ),
         pcm,
     )
+
+
+def parse_source_wav(data: bytes) -> tuple[RawWavInfo, bytes]:
+    fmt, samples = wave_chunks(data)
+    if len(fmt) not in {16, 18, 40}:
+        raise invalid_wav()
+    encoding, channels, rate, byte_rate, align, bits = struct.unpack_from("<HHIIHH", fmt)
+    if len(fmt) == 18 and struct.unpack_from("<H", fmt, 16)[0] != 0:
+        raise invalid_wav()
+    if len(fmt) == 40:
+        extension, valid_bits = struct.unpack_from("<HH", fmt, 16)
+        if encoding != 65534 or extension != 22 or not 0 < valid_bits <= bits:
+            raise invalid_wav()
+        guid = fmt[24:40]
+        if guid == bytes.fromhex("0100000000001000800000aa00389b71"):
+            encoding = 1
+        elif guid == bytes.fromhex("0300000000001000800000aa00389b71"):
+            encoding = 3
+        else:
+            raise invalid_wav()
+    if (
+        encoding not in {1, 3}
+        or channels not in {1, 2}
+        or not 8000 <= rate <= 192000
+        or (encoding == 1 and bits not in {8, 16, 24, 32})
+        or (encoding == 3 and bits not in {32, 64})
+        or align != channels * (bits // 8)
+        or byte_rate != rate * align
+        or len(samples) % align
+    ):
+        raise invalid_wav()
+    frames = len(samples) // align
+    if frames > MAX_AUDIO_SECONDS * rate:
+        raise TalkVideoError(
+            "audio_duration_limit",
+            "Source WAV exceeds the duration limit.",
+            "Use a shorter script.",
+        )
+    return RawWavInfo(
+        sample_rate=rate,
+        channels=channels,
+        bits_per_sample=bits,
+        encoding="pcm" if encoding == 1 else "float",
+        frames=frames,
+        duration_seconds=frames / rate,
+    ), samples
 
 
 def encode_wav(pcm: bytes, *, rate: int, channels: int, width: int) -> bytes:
@@ -153,6 +216,10 @@ class SafeToRetry(Exception):
 
 class AmbiguousSubmission(Exception):
     """Submission may have occurred: never automatically repeat the request."""
+
+
+class SubmissionRejected(TalkVideoError):
+    """An explicit response rejected this POST; never silently regenerate it."""
 
 
 class AudioProvider(Protocol):

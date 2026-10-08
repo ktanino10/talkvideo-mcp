@@ -82,6 +82,12 @@ def split_text(text: str, limits: ChunkLimits) -> list[str]:
 
 
 def prepare_script(script: ScriptInput) -> PreparedScript:
+    if script.cues is None:
+        raise TalkVideoError(
+            "input_root_required",
+            "File preparation requires an explicitly configured input root.",
+            "Use the server's file preparation surface with --input-root; no file was read.",
+        )
     tracks = [
         [cue.display_text for cue in script.cues],
         [

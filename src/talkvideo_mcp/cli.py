@@ -4,15 +4,19 @@ import argparse
 import asyncio
 import json
 import logging
+import os
 import signal
 import sys
 import unicodedata
+from collections.abc import Mapping
 from pathlib import Path
 
 import anyio
 from mcp.server.stdio import stdio_server
 
 from talkvideo_mcp import __version__
+from talkvideo_mcp.coefont import CoefontProvider
+from talkvideo_mcp.config import Credentials, load_config
 from talkvideo_mcp.engine import Engine
 from talkvideo_mcp.errors import TalkVideoError
 from talkvideo_mcp.models import ReviewStage, RevisionRef
@@ -37,8 +41,49 @@ def configure_logging() -> None:
     logging.basicConfig(level=logging.WARNING, handlers=[handler], force=True)
 
 
-async def serve(root: Path, enable_diagnostics: bool) -> None:
-    engine = Engine(root, enable_diagnostics=enable_diagnostics)
+def configured_engine(
+    root: Path,
+    enable_diagnostics: bool,
+    input_root: Path | None = None,
+    config_path: Path | None = None,
+    environment: Mapping[str, str] | None = None,
+) -> Engine:
+    provider = None
+    missing: tuple[str, ...] = ("explicit_operator_configuration",)
+    if config_path is not None:
+        config = load_config(config_path).coefont
+        missing = tuple(config.activation_missing())
+        if not missing:
+            try:
+                credentials = Credentials.from_environment(
+                    os.environ if environment is None else environment
+                )
+            except TalkVideoError as exc:
+                if exc.problem.code != "coefont_credentials_missing":
+                    raise
+                missing = ("credential_environment",)
+            else:
+                provider = CoefontProvider(config, credentials)
+    return Engine(
+        root,
+        enable_diagnostics=enable_diagnostics,
+        input_root=input_root,
+        official_provider=provider,
+        production_missing=missing,
+    )
+
+
+async def serve(
+    root: Path,
+    enable_diagnostics: bool,
+    input_root: Path | None = None,
+    config_path: Path | None = None,
+) -> None:
+    engine = configured_engine(root, enable_diagnostics, input_root, config_path)
+    await serve_engine(engine)
+
+
+async def serve_engine(engine: Engine) -> None:
     server = build_server(engine)
     loop = asyncio.get_running_loop()
     current = asyncio.current_task()
@@ -107,6 +152,10 @@ def parser() -> argparse.ArgumentParser:
         subparser = subcommands.add_parser(command)
         subparser.add_argument("--root", type=Path, default=Path("output"))
         subparser.add_argument("--enable-diagnostics", action="store_true")
+        subparser.add_argument("--input-root", type=Path)
+        subparser.add_argument(
+            "--config", type=Path, help="Explicit private operator TOML; no credentials."
+        )
     review_parser = subcommands.add_parser("review")
     review_parser.add_argument("video_name")
     review_parser.add_argument("revision_id")
@@ -122,9 +171,11 @@ def main() -> None:
     args = parser().parse_args()
     try:
         if args.command == "serve":
-            asyncio.run(serve(args.root, args.enable_diagnostics))
+            asyncio.run(serve(args.root, args.enable_diagnostics, args.input_root, args.config))
         elif args.command == "capabilities":
-            engine = Engine(args.root, enable_diagnostics=args.enable_diagnostics)
+            engine = configured_engine(
+                args.root, args.enable_diagnostics, args.input_root, args.config
+            )
             print(engine.capabilities().model_dump_json(indent=2))
         else:
             ref = RevisionRef(video_name=args.video_name, revision_id=args.revision_id)

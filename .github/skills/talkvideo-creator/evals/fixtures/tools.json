@@ -11,7 +11,7 @@
   },
   {
     "name": "talkvideo_prepare_script",
-    "description": "Read-only lossless Unicode cue splitting. Default normalization is none; returns display/spoken tracks, stable cue/chunk IDs and a plan digest. Provider limits are not verified. Does not write or generate audio.",
+    "description": "Read-only lossless Unicode cue splitting. Default normalization is none; accepts inline cues OR a relative UTF-8 script_file under the configured input root; returns display/spoken tracks, stable cue/chunk IDs and a plan digest. Provider limits are not verified. Does not write or generate audio.",
     "input_schema": {
       "type": "object",
       "$defs": {
@@ -89,15 +89,60 @@
         }
       },
       "additionalProperties": false,
+      "oneOf": [
+        {
+          "properties": {
+            "cues": {
+              "type": "array"
+            }
+          },
+          "required": [
+            "cues"
+          ]
+        },
+        {
+          "properties": {
+            "script_file": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "script_file"
+          ]
+        }
+      ],
       "properties": {
         "cues": {
-          "items": {
-            "$ref": "#/$defs/CueInput"
-          },
-          "maxItems": 128,
-          "minItems": 1,
-          "title": "Cues",
-          "type": "array"
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/CueInput"
+              },
+              "maxItems": 128,
+              "minItems": 1,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cues"
+        },
+        "script_file": {
+          "anyOf": [
+            {
+              "maxLength": 255,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "User-designated UTF-8 file relative to the operator-configured input root.",
+          "title": "Script File"
         },
         "normalization": {
           "default": "none",
@@ -112,15 +157,12 @@
           "$ref": "#/$defs/ChunkLimits"
         }
       },
-      "required": [
-        "cues"
-      ],
       "title": "ScriptInput"
     }
   },
   {
     "name": "talkvideo_save_revision",
-    "description": "Save an immutable script/settings revision under output/<video>/<revision>. No media is generated. Production stays unavailable; diagnostics need server opt-in.",
+    "description": "Save an immutable script/settings revision under output/<video>/<revision>. No media is generated. Official API use needs separate operator configuration; diagnostics need server opt-in.",
     "input_schema": {
       "type": "object",
       "$defs": {
@@ -230,15 +272,60 @@
         },
         "ScriptInput": {
           "additionalProperties": false,
+          "oneOf": [
+            {
+              "properties": {
+                "cues": {
+                  "type": "array"
+                }
+              },
+              "required": [
+                "cues"
+              ]
+            },
+            {
+              "properties": {
+                "script_file": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "script_file"
+              ]
+            }
+          ],
           "properties": {
             "cues": {
-              "items": {
-                "$ref": "#/$defs/CueInput"
-              },
-              "maxItems": 128,
-              "minItems": 1,
-              "title": "Cues",
-              "type": "array"
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/CueInput"
+                  },
+                  "maxItems": 128,
+                  "minItems": 1,
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Cues"
+            },
+            "script_file": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "User-designated UTF-8 file relative to the operator-configured input root.",
+              "title": "Script File"
             },
             "normalization": {
               "default": "none",
@@ -253,9 +340,6 @@
               "$ref": "#/$defs/ChunkLimits"
             }
           },
-          "required": [
-            "cues"
-          ],
           "title": "ScriptInput",
           "type": "object"
         }
@@ -338,7 +422,7 @@
   },
   {
     "name": "talkvideo_start_audio_job",
-    "description": "Start/return a durable sequential diagnostic audio job and return immediately. Preview uses at most 3 whole chunks. Full audio requires script and preview review. Production speech always errors. Repeated start returns the same job; use resume.",
+    "description": "Start/return a durable sequential audio job and return immediately. Diagnostics preview at most 3 chunks; official speech previews one <=80-codepoint chunk, with actual audio capped at 30 seconds. Full audio needs both reviews. Default production is disabled. An explicitly operator-authorized official API may transmit text and incur charges; Maker is never used. Repeated start returns the same job; use resume.",
     "input_schema": {
       "type": "object",
       "$defs": {
@@ -474,7 +558,7 @@
   },
   {
     "name": "talkvideo_resume_job",
-    "description": "Resume the same immutable job after checking hashes, settings and review receipts. Keeps retry budgets; never repeats ambiguous submissions. Edits need a new revision.",
+    "description": "Resume the same immutable job after checking hashes, settings and review receipts. Keeps POST/download budgets and persisted Retry-After; never repeats ambiguous POSTs. Existing files resume by GET/local normalization only. Edits need a new revision.",
     "input_schema": {
       "type": "object",
       "additionalProperties": false,
@@ -493,7 +577,7 @@
   },
   {
     "name": "talkvideo_inspect_output",
-    "description": "Read/verify hashes, PCM frames, assembly/timing and paginated artifact metadata. Selected MP4s are locally probed. This is not a perceptual media-quality review.",
+    "description": "Read/verify hashes, PCM frames, assembly/timing and paginated artifact metadata. Selected MP4s are fully decoded with packet clock/frame checks. Raw/normalized audio hashes are verified. This is not a perceptual quality review.",
     "input_schema": {
       "type": "object",
       "$defs": {

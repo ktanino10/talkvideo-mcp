@@ -302,8 +302,8 @@ name = "httpcore2"
 version = "2.13.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "h11", marker = "python_full_version < '3.12' or python_full_version >= '3.14' or sys_platform != 'emscripten'" },
-    { name = "truststore", marker = "python_full_version < '3.12' or python_full_version >= '3.14' or sys_platform != 'emscripten'" },
+    { name = "h11" },
+    { name = "truststore" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/cb/f3/1db7aa2bc2524062192bb0e0323969492d1883152a232fe36eea65f4e35c/httpcore2-2.13.1.tar.gz", hash = "sha256:e0aa977abe17e69a3b820a24542a6fa88702676d83880b8d194dcd18408e5103", size = 68071, upload-time = "2026-09-23T07:47:22.372Z" }
 wheels = [
@@ -1330,6 +1330,8 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "anyio" },
+    { name = "httpcore2" },
+    { name = "httpx2" },
     { name = "mcp" },
     { name = "pydantic" },
     { name = "regex" },
@@ -1349,6 +1351,8 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "anyio", specifier = ">=4.10" },
+    { name = "httpcore2", specifier = "==2.13.1" },
+    { name = "httpx2", specifier = "==2.13.1" },
     { name = "mcp", specifier = "==2.3.0" },
     { name = "pydantic", specifier = ">=2.12,<3" },
     { name = "regex", specifier = ">=2024.11.6" },

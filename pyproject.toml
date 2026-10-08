@@ -12,6 +12,8 @@ license = "MIT"
 authors = [{ name = "ktanino10" }]
 dependencies = [
   "anyio>=4.10",
+  "httpcore2==2.13.1",
+  "httpx2==2.13.1",
   "mcp==2.3.0",
   "pydantic>=2.12,<3",
   "regex>=2024.11.6",

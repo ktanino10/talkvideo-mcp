@@ -18,15 +18,21 @@ test fixtures are preferable to uploading recordings.
 
 ## Deliberate production gates
 
-An unavailable voice or real-person video backend is not a transient service
-failure. No production backend is implemented in this release. Future
-generation requires provider authorization, separately licensed models,
-permitted voice/likeness/footage, and a validated implementation.
+An unavailable voice or real-person video backend is not necessarily a transient
+service failure. The optional official API adapter is offline-tested and disabled
+by default; eligibility, private-use voice permission, fees and credentials need
+separate operator confirmation. Real-person video still needs permitted source
+material/model use and a validated implementation.
 
 Website availability, clip-reuse permission, non-monetization, and a caller's
 `approved=true` flag do not establish those conditions. Local review receipts
 are workflow acknowledgments, **not proof of media rights or human identity**.
 They cannot enable production media.
+
+Generated media is intended for private personal use, not publication.
+That does not override Maker's automation prohibition or establish API/voice
+permission. Future publication would need a separate check, not an extra
+mandatory gate for the current private workflow.
 
 The project does not bypass authentication, quotas, content restrictions, or
 provider terms. It does not contact providers or original authors for you.

@@ -251,6 +251,10 @@ class LocalStore:
             raise
         self._lock = handle
 
+    @property
+    def writer_held(self) -> bool:
+        return self._lock is not None
+
     def close(self) -> None:
         if self._lock is not None:
             fcntl.flock(self._lock, fcntl.LOCK_UN)

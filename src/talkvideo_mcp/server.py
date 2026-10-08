@@ -36,7 +36,6 @@ from talkvideo_mcp.models import (
     ScriptInput,
     Stage,
 )
-from talkvideo_mcp.text import prepare_script
 
 InputT = TypeVar("InputT", bound=BaseModel)
 OutputT = TypeVar("OutputT", bound=BaseModel)
@@ -89,6 +88,7 @@ def bind(
     next_action: str,
     idempotent: bool = False,
     destructive: bool = False,
+    open_world: bool = False,
 ) -> Binding:
     async def invoke(arguments: dict[str, object]) -> CallToolResult:
         try:
@@ -158,7 +158,7 @@ def bind(
                 read_only_hint=read_only,
                 destructive_hint=destructive,
                 idempotent_hint=read_only or idempotent,
-                open_world_hint=False,
+                open_world_hint=open_world,
             ),
         ),
         invoke=invoke,
@@ -170,7 +170,7 @@ def build_server(engine: Engine) -> Server[None]:
         return engine.capabilities()
 
     async def prepare(request: ScriptInput) -> PreparedScript:
-        return prepare_script(request)
+        return engine.prepare_script(request)
 
     async def save(request: SaveRevisionInput) -> Revision:
         return engine.save_revision(request)
@@ -207,11 +207,13 @@ def build_server(engine: Engine) -> Server[None]:
             Response[Capabilities],
             capabilities,
             read_only=True,
-            next_action="Production is unavailable. Prepare scripts or explicitly use diagnostics.",
+            next_action="Check configuration and authorization separately from implementation; "
+            "prepare scripts while production remains unavailable here.",
         ),
         bind(
             "talkvideo_prepare_script",
             "Read-only lossless Unicode cue splitting. Default normalization is none; "
+            "accepts inline cues OR a relative UTF-8 script_file under the configured input root; "
             "returns display/spoken tracks, stable cue/chunk IDs and a plan digest. "
             "Provider limits are not verified. Does not write or generate audio.",
             ScriptInput,
@@ -223,7 +225,8 @@ def build_server(engine: Engine) -> Server[None]:
         bind(
             "talkvideo_save_revision",
             "Save an immutable script/settings revision under output/<video>/<revision>. "
-            "No media is generated. Production stays unavailable; diagnostics need server opt-in.",
+            "No media is generated. Official API use needs separate operator configuration; "
+            "diagnostics need server opt-in.",
             SaveRevisionInput,
             Response[Revision],
             save,
@@ -241,14 +244,18 @@ def build_server(engine: Engine) -> Server[None]:
         ),
         bind(
             "talkvideo_start_audio_job",
-            "Start/return a durable sequential diagnostic audio job and return immediately. "
-            "Preview uses at most 3 whole chunks. Full audio requires script and preview review. "
-            "Production speech always errors. Repeated start returns the same job; use resume.",
+            "Start/return a durable sequential audio job and return immediately. "
+            "Diagnostics preview at most 3 chunks; official speech previews one <=80-codepoint "
+            "chunk, with actual audio capped at 30 seconds. Full audio needs both reviews. "
+            "Default production is disabled. An explicitly operator-authorized official API "
+            "may transmit text and incur charges; Maker is never used. "
+            "Repeated start returns the same job; use resume.",
             StartInput,
             Response[Job],
             audio,
             read_only=False,
             idempotent=True,
+            open_world=True,
             next_action="Poll get_job; a started job is not a completed output.",
         ),
         bind(
@@ -282,22 +289,26 @@ def build_server(engine: Engine) -> Server[None]:
             read_only=False,
             idempotent=True,
             destructive=True,
+            open_world=True,
             next_action="Inspect the retained job; resume only unchanged verified input.",
         ),
         bind(
             "talkvideo_resume_job",
             "Resume the same immutable job after checking hashes, settings and review receipts. "
-            "Keeps retry budgets; never repeats ambiguous submissions. Edits need a new revision.",
+            "Keeps POST/download budgets and persisted Retry-After; never repeats ambiguous POSTs. "
+            "Existing files resume by GET/local normalization only. Edits need a new revision.",
             JobInput,
             Response[Job],
             resume,
             read_only=False,
+            open_world=True,
             next_action="Poll get_job and inspect output once succeeded.",
         ),
         bind(
             "talkvideo_inspect_output",
             "Read/verify hashes, PCM frames, assembly/timing and paginated artifact metadata. "
-            "Selected MP4s are locally probed. This is not a perceptual media-quality review.",
+            "Selected MP4s are fully decoded with packet clock/frame checks. "
+            "Raw/normalized audio hashes are verified. This is not a perceptual quality review.",
             InspectInput,
             Response[Inspection],
             inspect,
@@ -348,10 +359,13 @@ def build_server(engine: Engine) -> Server[None]:
         "talkvideo_mcp",
         version=__version__,
         instructions=(
-            "Local-only independent workflow. Production voice and real-person lip-sync are "
-            "unavailable. Diagnostic tones/patterns are not speech or perceptual quality evidence. "
+            "Independent local-video workflow. Official API speech is optional and disabled unless "
+            "an operator separately confirms contract/voice/paid-use and configures credentials. "
+            "No Maker automation. Real-person lip-sync is unavailable. "
+            "Diagnostic/mock media is not live speech or perceptual quality evidence. "
             "Only the user records local reviews; tool arguments cannot grant rights. "
-            "Do not upload media, contact upstream authors, or substitute voices/services."
+            "Keep generated media private. Do not upload it, contact upstream authors, "
+            "or substitute voices/services."
         ),
         on_list_tools=list_tools,
         on_call_tool=call_tool,

@@ -2,6 +2,7 @@ import asyncio
 import json
 import sys
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
 from mcp import Client, StdioServerParameters
@@ -100,7 +101,10 @@ async def test_native_cli_discovery_strict_errors_and_no_read_side_effects(tmp_p
             assert tool.input_schema["additionalProperties"] is False
             assert tool.output_schema["type"] == "object"
             assert tool.annotations.read_only_hint == (tool.name in READ_ONLY)
-            assert not tool.annotations.open_world_hint
+            assert tool.annotations.open_world_hint == (
+                tool.name
+                in {"talkvideo_start_audio_job", "talkvideo_resume_job", "talkvideo_cancel_job"}
+            )
         caps = await call(client, "talkvideo_get_capabilities")
         assert not caps["production_audio"]["available"]
         assert not caps["real_person_lip_sync"]["available"]
@@ -217,3 +221,65 @@ async def test_native_video_jobs_require_both_matching_preview_reviews(tmp_path)
             "narration.wav",
         }
         assert not inspected["lip_sync_assessed"]
+        assert inspected["video_decode"]["preview.mp4"]["decoded_frames"] > 0
+
+
+async def test_native_mock_official_retrieval_survives_shutdown_without_new_post(tmp_path):
+    root = tmp_path / "output"
+    voice = str(uuid4())
+
+    def native(pause=False):
+        args = [
+            str(REPO / "tests/stdio_coefont_fixture.py"),
+            "--root",
+            str(root),
+            "--voice",
+            voice,
+        ]
+        if pause:
+            args.append("--pause-download")
+        return Client(StdioServerParameters(command=sys.executable, args=args, cwd=str(REPO)))
+
+    async with native(pause=True) as client:
+        caps = await call(client, "talkvideo_get_capabilities")
+        assert caps["production_audio"]["execution_mode"] == "mock"
+        assert not caps["production_audio"]["live_verified"]
+        tools = await client.list_tools()
+        schema_text = json.dumps([tool.input_schema for tool in tools.tools])
+        assert "access_key" not in schema_text and "access_secret" not in schema_text
+        script = {"cues": [{"display_text": "offline official API transport fixture"}]}
+        prepared = await call(client, "talkvideo_prepare_script", script)
+        revision = await call(
+            client,
+            "talkvideo_save_revision",
+            {
+                "video_name": "official-native",
+                "script": script,
+                "expected_plan_digest": prepared["plan_digest"],
+                "backend": "production",
+            },
+        )
+        fixture_review(root, revision["ref"], "script")
+        job = await call(client, "talkvideo_start_audio_job", {"ref": revision["ref"]})
+        async with asyncio.timeout(10):
+            while True:
+                active = await call(client, "talkvideo_get_job", {"job_id": job["job_id"]})
+                counts = (
+                    json.loads((root / "fixture-calls.json").read_text())
+                    if (root / "fixture-calls.json").exists()
+                    else {}
+                )
+                if counts.get("GET") == 1 and active["retrieval_pending"]:
+                    break
+                await asyncio.sleep(0.01)
+        assert active["status"] == "running" and not active["submission_pending"]
+    async with native() as client:
+        stopped = await call(client, "talkvideo_get_job", {"job_id": job["job_id"]})
+        assert stopped["status"] == "interrupted" and stopped["retrieval_pending"]
+        await call(client, "talkvideo_resume_job", {"job_id": job["job_id"]})
+        done = await wait_job(client, job["job_id"])
+        assert done["status"] == "succeeded" and done["diagnostic_only"]
+        assert json.loads((root / "fixture-calls.json").read_text()) == {"POST": 1, "GET": 2}
+        result = await call(client, "talkvideo_inspect_output", {"ref": revision["ref"]})
+        assert not result["perceptual_quality_assessed"]
+        assert all(artifact["diagnostic_only"] for artifact in result["artifacts"])

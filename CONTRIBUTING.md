@@ -27,8 +27,11 @@ installed official SDK, not just direct Python function calls.
 
 Keep the core local, sequential and inspectable. Use the pinned official MCP
 SDK; update the lockfile and protocol tests together when upgrading. Keep
-model dependencies separate. Do not add automatic downloads, uploads, paid
-services, global configuration changes, or release publication.
+model dependencies separate. Do not add automatic downloads, uploads, default
+paid-service activation, global configuration changes, or release publication.
+The official API remains operator-opt-in; tests must inject both HTTP transports
+and runtime-only fake keys, never documentation sample keys or a live service.
+Preserve durable Retry-After deadlines and GET-only recovery after a confirmed POST.
 
 Every advertised capability needs a tested implementation. Unavailable
 backends return actionable errors, not fixture media labeled as speech or

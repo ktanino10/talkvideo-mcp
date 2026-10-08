@@ -2,11 +2,12 @@
 
 An independently maintained toolkit for agent-driven narration and local video production.
 
-> **Foundation release, not a production voice or lip-sync service.**
-> Production speech and real-person lip-sync are deliberately unavailable.
-> This version does not produce Hiroyuki speech or a person speaking new lines.
-> Its opt-in test media is a **440 Hz diagnostic tone and a test-pattern MP4**,
-> never a substitute for a voice or a perceptual quality assessment.
+> **Private personal media use; official speech is optional and disabled by default.**
+> The official CoeFont API adapter is verified offline, not with live credentials or a
+> particular person's voice. An eligible API contract, authorized voice, paid-use
+> confirmation and private operator configuration are still required.
+> Real-person lip-sync is not implemented. Diagnostic/mock media is **not speech or
+> perceptual quality evidence**. The code repository is public; generated media stays private.
 
 ## Support
 
@@ -24,14 +25,15 @@ terms. None of those rights are granted by this repository.
 | Capability | This version |
 | --- | --- |
 | Agent-facing MCP | 11 structured, annotated tools over stdio; no HTTP listener |
-| Text preparation | Read-only, stable cue IDs, separate display/spoken text, exact rejoining |
+| Text preparation | Read-only inline cues OR bounded UTF-8 files under an explicit input root |
 | Long-text splitting | Grapheme-safe; prefers sentence/clause boundaries; preserves whitespace and numeric periods |
 | Durable jobs | One sequential worker, bounded retries, cancellation, shutdown/restart and resume |
-| Audio validation | Strict PCM RIFF/WAVE checks, SHA-256, exact frame/gap assembly and timing |
+| Audio validation | Strict RIFF/WAVE, raw/normalized hashes, explicit local PCM conversion and frame timing |
 | Revisions | New immutable revisions; reuse verified unchanged chunks; recompute downstream timing |
 | Diagnostic audio/video | Explicit opt-in tone generation and local FFmpeg test-pattern mux |
-| Production TTS / real-person lip-sync | **Unavailable, even with a review receipt or `approved=true`** |
-| Uploads / publication / cloud video | Not implemented; no automatic transmission |
+| Official CoeFont speech | Implemented, offline-tested, unconfigured by default; operator authorization is separate |
+| Real-person lip-sync | **Unavailable**; no model or footage integration is fabricated |
+| Uploads / publication / cloud video | Not implemented; media remains local/private |
 
 The official Python SDK is pinned to **`mcp==2.3.0`**, verified as a published,
 non-yanked stable release on 2026-10-08. The server uses that SDK's low-level
@@ -43,8 +45,8 @@ HTTP bridge. Heavy model dependencies are not part of the package.
 
 Requires Python 3.11+, `uv`, and macOS or Linux. The filesystem and process
 boundary uses POSIX descriptor-relative I/O and process groups; Windows is
-not supported by this release. FFmpeg and ffprobe are optional, and needed
-only for diagnostic video.
+not supported by this release. FFmpeg and ffprobe are needed for diagnostic
+video/full decoding and for explicitly enabled audio-format conversion.
 
 From the **repository root**:
 
@@ -69,6 +71,8 @@ Natural-language examples:
 
 ```text
 TalkVideo向けの台本だけ整えて。数値と否定を変えず、音声はまだ作らないで。
+ひろゆき風の解説動画を準備して。まず使える機能と台本を確認して。
+この文章をひろゆき風に読み上げたい。利用許可と設定を確認してからにして。
 TalkVideoの利用可能な機能を確認して、明示的な診断テストだけ進めて。
 このrevisionのc0002の発音だけ直して。新しいプレビューを確認してから全文版へ。
 ```
@@ -95,8 +99,11 @@ See the [official Copilot CLI setup documentation](https://docs.github.com/en/co
 
 ## Production gates and review
 
-No production speech provider, endpoint, credentials, footage input, model
-download or model execution is wired.
+Generated media is for **private personal use**. Check acquisition, modification
+and private-use permissions for the actual source/voice/model. Publication
+permission is not an additional gate for this private workflow; future
+publication would require its own check. Personal use does not authorize
+Maker automation, paid API usage, or a particular person's likeness.
 
 **The Hiroyuki Maker route must not be automated under its published terms.**
 The [Maker-specific terms](https://coefont.cloud/maker/terms), checked on
@@ -107,16 +114,16 @@ of portrait, privacy and intellectual-property rights (Article 3(2)).
 Public availability, a review flag, or older/generic CoeFont terms do not
 override these Maker-specific restrictions.
 
-A future production backend would require a **separately authorized,
-supported provider/integration**, plus independently verified voice/likeness/
-media permissions, model licensing, resource limits, local platform
-compatibility and perceptual evaluation. Clip-reuse permission does not imply
-permission for newly synthesized statements. Wav2Lip's legacy dependencies and
+The optional official REST API is a **separate, operator-authorized integration**,
+not a way to automate Maker or override its terms. Voice/likeness/private media
+permissions, model licensing and platform compatibility remain separate.
+Clip-reuse permission does not imply permission for newly synthesized statements.
+Wav2Lip's legacy dependencies and
 separate restrictive terms, and MuseTalk's documented CUDA-oriented path,
 are not evidence of usable Apple Silicon/MPS support. This release neither
 downloads nor executes those models.
 
-The diagnostic workflow exercises these review boundaries:
+Both diagnostic and separately authorized speech workflows keep these review boundaries:
 
 1. Draft and review the script. `prepare_script` changes nothing on disk.
    `save_revision` checks its digest and persists metadata, not audio.
@@ -135,10 +142,84 @@ uv run --locked talkvideo-mcp review VIDEO_NAME REVISION_ID --stage video_previe
 ```
 
 Each command requires a TTY and typing a digest-specific phrase. There is no
-MCP approval tool, `--yes` option or production-unlock flag. Agents must not
+MCP approval tool or `--yes` option. Review receipts cannot configure or authorize
+the official provider. Agents must not
 write receipts or simulate the user's interaction. Receipts acknowledge local
 review; they are **not cryptographic proof of a person's consent or media
 rights**. Local files and the local operator remain a trust boundary.
+
+## Optional official CoeFont API (not activated here)
+
+The [official API 2.0.3 documentation](https://docs.coefont.cloud/en/) specifies
+`POST https://api.coefont.cloud/v2/text2speech`, a 1..1000-character text body,
+and a 302 redirect to the generated binary with a seven-day URL lifetime.
+The adapter signs **UTC UNIX seconds concatenated with the exact JSON UTF-8
+bytes sent** using HMAC-SHA256. The authenticated origin/path is fixed.
+The initial integration requests WAV only. The typed adapter also validates
+paired Japanese `yomi`/`accent` and documented prosody bounds; the MCP workflow
+uses approved `spoken_text`, with voice/prosody selected by the operator.
+For a short official preview, prepare a first chunk of at most 80 codepoints
+(for example `limits.codepoints: 80`). The preview submits only that one
+complete chunk, and rejects audio longer than 30 seconds rather than
+silently treating a long render as a short preview.
+
+This is **not a free-service claim**. Check the [current plans](https://coefont.cloud/selectPlan)
+and your actual API contract, quota and voice permission. An existing account,
+personal use, a sample UUID or documentation sample credentials establish none
+of those. No account, subscription, key or live request is created by setup.
+
+Only after separate authorization, an operator may copy
+[`examples/official-api.toml.example`](examples/official-api.toml.example) into
+gitignored `local/official-api.toml` and supply their own authorized voice UUID,
+contract/private-use references, paid-request confirmation and exact trusted
+download hosts. The example is disabled and contains no keys or real voice UUID.
+Then launch the server with `--config local/official-api.toml`.
+
+Credentials belong only in the server process environment:
+`TALKVIDEO_COEFONT_ACCESS_KEY` and `TALKVIDEO_COEFONT_ACCESS_SECRET`.
+The host must explicitly pass them through an approved secret-provisioning
+mechanism; not every host inherits arbitrary parent-shell variables.
+Do not put values in tool inputs, CLI arguments, TOML, fixtures, source or logs.
+Without an explicit enabled and complete operator config, credentials are not
+looked up. The project does not change host/global MCP settings.
+
+Capability output distinguishes `implemented`, `configured`, `available`,
+`authorization_status`, `execution_mode` and `live_verified`. Operator references
+are attestations, not independently verified rights. Mock transports never
+count as live evidence; half-mock/half-live transport pairs are rejected.
+When actually authorized and enabled later, speech text leaves the machine for
+the official API and may incur charges. Video processing remains local.
+
+Downloads are deliberately stricter than an automatic redirect:
+
+- No auth, signature, cookies or proxy credentials are forwarded to GETs.
+- Every redirect needs HTTPS, no userinfo/fragment/custom port, and an exact
+  operator-confirmed host. No wildcard or implicit suffix trust is supported.
+  Public docs do not establish a trusted audio-download hostname; the default
+  allowlist is empty, not a guessed storage bucket.
+- DNS results must all be public addresses. Connections use the checked IP,
+  while normal TLS certificate/SNI checks use the original hostname, avoiding
+  a second DNS-resolution/rebinding gap.
+- POST ambiguity is durable and never automatically resubmitted. A confirmed
+  redirect or cached raw file resumes with **GET/local processing only**.
+  Explicit API rejections remain journaled and require operator reconciliation.
+- GET retries are cumulative and bounded. Delta-seconds and HTTP-date
+  `Retry-After` deadlines survive cancel/restart/resume. A wait beyond the
+  local automatic-wait budget returns `deferred` with `retry_not_before`,
+  rather than shortening the wait or creating another generation.
+
+Validated raw WAVs are retained before optional normalization. Mismatched
+formats fail unless the operator explicitly enables conversion; supported
+PCM/float WAV inputs are normalized locally to 16 kHz mono PCM16 with bounded
+FFmpeg, or losslessly rewrapped when only the WAV header differs. Raw and
+normalized hashes, formats, frames and the conversion method are recorded.
+Unknown/invalid/partial audio is rejected, never renamed as valid PCM.
+
+The private `.state/coefont/` journal/cache contains short-lived signed URLs
+until a validated raw copy is durable, then removes them. Treat this state as
+sensitive. No tool returns those URLs or API credentials. Cache identity includes
+voice/options/contract and mock/live mode; an offline fixture cannot become
+live speech by changing configuration.
 
 ## Tool contract
 
@@ -148,7 +229,7 @@ Names below have the `talkvideo_` prefix in the registered server.
 | Tool | Effect |
 | --- | --- |
 | `get_capabilities` | Read limits, gates, diagnostics and model notes |
-| `prepare_script` | Read-only validation/normalization/segmentation |
+| `prepare_script` | Read-only inline or rooted UTF-8 file preparation |
 | `save_revision` | Persist a new immutable script/settings revision |
 | `get_revision` | Read both tracks, stable cue IDs and provenance |
 | `start_audio_job` | Return a durable preview/full audio job immediately |
@@ -156,7 +237,7 @@ Names below have the `talkvideo_` prefix in the registered server.
 | `get_job` | Read progress, failure classification and next action |
 | `cancel_job` | Cancel work, retain completed chunks, reap subprocesses |
 | `resume_job` | Verify hashes/settings/reviews; continue the same job |
-| `inspect_output` | Verify bytes, PCM frames/assembly/timing; page artifacts |
+| `inspect_output` | Raw/PCM hashes, frame timing, full video decode; page artifacts |
 | `revise_cues` | New revision for targeted edits, never edit a resumed job |
 
 Tool results include `ok`, typed `data` or `error`, `next_action`, and
@@ -185,6 +266,21 @@ newlines, punctuation, emoji and combining sequences are not stripped. Chunks
 rejoin each spoken cue exactly; prepared cues rejoin both complete tracks.
 One over-limit grapheme is rejected, not split or silently dropped.
 
+For a designated script file, configure `--input-root inputs` and call:
+
+```json
+{"script_file": "my-script.txt", "normalization": "none"}
+```
+
+`cues` and `script_file` are mutually exclusive. Paths are relative to the
+explicit input root; traversal, symlinks, special files, invalid UTF-8 and
+oversized files are rejected without echoing their contents. The input and
+output roots must be disjoint so private provider state is not exposed as
+script input. Newlines and a nonempty file's UTF-8 BOM are preserved, not
+silently stripped. Preparation returns a source-file SHA-256 and size.
+Saving a revision rereads the file and checks the prepared text digest.
+Subsequent jobs use the immutable saved text, not a later edit to the input file.
+
 ## Bounded resources, recovery and artifacts
 
 These are **host limits**, not verified permissions/limits of a provider:
@@ -194,17 +290,21 @@ These are **host limits**, not verified permissions/limits of a provider:
 | Each complete display/spoken track | 20,000 codepoints / 80,000 UTF-8 bytes |
 | Cues / chunks per script | 128 / 512 |
 | Per chunk | Configurable up to 1,000 graphemes, 1,000 codepoints, 4,000 bytes |
-| Preview | First at most 3 complete chunks, explicitly not the full script |
+| Preview | Diagnostic: up to 3 chunks. Official: first chunk <=80 codepoints, actual audio <=30 seconds |
 | Audio including inter-chunk gaps | 180 seconds, 16 kHz mono PCM16 |
 | File / manifest | 64 MiB / 1 MiB |
 | Concurrency / queue | One job / at most 8 queued or running jobs |
 | Attempts per chunk | 3 total across all resumes; only guaranteed pre-submission failures retry |
 | Provider attempt / job | 10 / 180 seconds |
+| Official POST / individual GET-chain deadline | 30 / 30 seconds, plus bounded cleanup |
+| Official requests cached per root / GET attempts per request | 512 / 3, without reset on resume |
+| Download redirects / automatic cooldown waiting per call | 3 / at most 2 seconds; longer waits defer |
 | Retained revisions / jobs per root | 200 / 1,000; archive manually or use a new root |
 
-The old 999/1000/1001 boundary is tested as a configurable **host** boundary;
-it is not treated as a current service contract. Diagnostic tone duration
-does not estimate spoken duration.
+The diagnostic attempt limit is not an API authorization. The official API's
+documented 1..1000-character bound is tested separately from host grapheme/byte
+limits. Actual account quotas/eligibility remain unverified here. Diagnostic
+tone duration does not estimate spoken duration.
 
 Outputs live under the configured root, normally:
 
@@ -217,6 +317,7 @@ output/
       artifacts.json          # Hashes, source links and frame-based timelines
       reviews/                # Local review acknowledgments
       chunks/                 # Validated immutable chunk WAVs
+      raw/                    # Authorized API source WAVs, when applicable
       preview.wav
       narration.wav
       preview.mp4             # Optional diagnostic test pattern
@@ -224,7 +325,7 @@ output/
 ```
 
 Text or settings changes belong in a **new revision**. Cue-specific edits
-copy only verified unchanged chunk bytes. Display-only edits retain speech
+copy only verified unchanged chunk bytes and any raw-source provenance. Display-only edits retain speech
 chunks. All assemblies, videos, timing and approvals are recomputed or
 re-earned. Existing files are never overwritten by generation.
 
@@ -232,7 +333,8 @@ Resume verifies settings and SHA-256, including the assembled PCM and source
 frame offsets. `ambiguous_submission` never automatically repeats a possibly
 accepted request. `retry_exhausted` cannot be reset through resume.
 `untracked_output` preserves an output published just before a crash rather
-than regenerating it. An unowned stored `running` state is reported as
+than regenerating it. Official request journals also prevent repeats across
+jobs/revisions for the same payload and authorization context. An unowned stored `running` state is reported as
 ownership-unconfirmed, not assumed to be active in the new server.
 
 One writer owns a root; review receipts are separately append-only. Managed
@@ -247,8 +349,17 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for lint/type/build/test commands.
 Tests include real SDK stdio discovery and calls, background jobs outliving a
 tool response, native cancellation and server shutdown/restart during an
 unfinished long fixture, exact PCM timing, invalid/partial/HTML audio, and
-local FFmpeg/ffprobe. Synthetic fixture acknowledgments are explicitly mocked,
-not real user reviews.
+local FFmpeg/ffprobe. MP4 validation includes complete strict decoding,
+decoded frame counts, continuous packet timestamps, nominal 25 fps clocks,
+and the fragmented MP4's AAC priming interval. Container average rate is
+reported separately; a readable header alone is insufficient. A corrupted
+payload regression confirms that distinction.
+
+Official API tests use two injected mock transports and runtime-only fake
+keys, not sample/live credentials. They exercise signing, status mapping,
+redirect isolation, DNS pinning, durable cooldowns, ambiguous POSTs,
+download-only restart/resume and normalization provenance. Synthetic fixture
+acknowledgments are explicitly mocked, not real user reviews.
 
 Ten fixed, independent, multi-call, read-only cases are defined in
 [`evals/readonly.xml`](evals/readonly.xml):
@@ -272,4 +383,6 @@ in gitignored `output/`, not the public repository.
 An SDK stdio pass is not evidence that the user's installed Copilot host has
 trusted/authorized the project. A file's duration, waveform/RMS or container
 validation is not evidence of natural speech or accurate lip-sync. Human
-review remains necessary, and production media remains blocked.
+review remains necessary. This installation has not activated or live-verified
+official speech, and real-person video remains blocked by missing permitted
+footage/model integration, not by a newly imposed publication requirement.

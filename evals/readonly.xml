@@ -5,7 +5,7 @@
     <answer>False</answer>
   </qa_pair>
   <qa_pair id="default-unicode">
-    <question>Check the default normalization, then prepare the exact string é☕ (an e followed by U+0301 and a coffee symbol). Rejoin the spoken chunks. Return the exact original Unicode string, not its NFC spelling.</question>
+    <question>Check default normalization and rooted file-input availability, then prepare the designated UTF-8 fixture file unicode.txt under the configured input root. It contains é☕ (an e followed by U+0301 and a coffee symbol). Rejoin the spoken chunks. Return the exact original Unicode string, not its NFC spelling.</question>
     <answer>é☕</answer>
   </qa_pair>
   <qa_pair id="explicit-nfc">

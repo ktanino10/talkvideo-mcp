@@ -28,6 +28,7 @@ from talkvideo_mcp.models import (
     ScriptInput,
 )
 from talkvideo_mcp.revisions import record_review, review_subject
+from talkvideo_mcp.storage import LocalStore
 from talkvideo_mcp.text import prepare_script
 
 REPO = Path(__file__).resolve().parents[1]
@@ -188,9 +189,13 @@ async def answer(
         )
     if identifier == "default-unicode":
         caps = await client.caps()
-        if caps.normalization_default != "none":
+        if caps.normalization_default != "none" or not caps.script_file_input.available:
             raise AssertionError("Unexpected default normalization.")
-        prepared = await client.prepare("e\u0301☕")
+        prepared = await client.model(
+            "talkvideo_prepare_script", {"script_file": "unicode.txt"}, PreparedScript
+        )
+        if prepared.source_file is None:
+            raise AssertionError("File preparation lost its source hash.")
         return "".join(chunk.text for cue in prepared.cues for chunk in cue.chunks)
     if identifier == "explicit-nfc":
         plain = await client.prepare("e\u0301e\u0301", normalization="none")
@@ -266,12 +271,22 @@ async def answer(
 
 async def run_evaluations(fixture_root: Path) -> dict[str, object]:
     base, edited, failed = await seed_fixture(fixture_root)
-    before = snapshot(fixture_root)
+    input_root = fixture_root.parent / (fixture_root.name + "-inputs")
+    LocalStore(input_root).write_bytes("unicode.txt", "e\u0301☕".encode())
+    before = (snapshot(fixture_root), snapshot(input_root))
     results = []
     cases = ET.parse(REPO / "evals/readonly.xml").getroot()
     parameters = StdioServerParameters(
         command=sys.executable,
-        args=["-m", "talkvideo_mcp", "serve", "--root", str(fixture_root)],
+        args=[
+            "-m",
+            "talkvideo_mcp",
+            "serve",
+            "--root",
+            str(fixture_root),
+            "--input-root",
+            str(input_root),
+        ],
         cwd=str(REPO),
     )
     async with Client(parameters) as native:
@@ -298,7 +313,7 @@ async def run_evaluations(fixture_root: Path) -> dict[str, object]:
                     "tool_calls": list(client.calls),
                 }
             )
-    unchanged = before == snapshot(fixture_root)
+    unchanged = before == (snapshot(fixture_root), snapshot(input_root))
     if not unchanged:
         raise AssertionError("Read-only evaluation changed fixture files.")
     return {

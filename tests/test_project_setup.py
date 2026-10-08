@@ -24,12 +24,27 @@ def test_project_discovery_and_safe_skill_metadata():
     assert "allowed-tools:" not in skill
     assert "zundamon-video" in skill
     assert "approved=true" in skill
+    assert "ひろゆき風の解説動画" in skill
+    assert "この文章をひろゆき風に読み上げ" in skill
+    assert "個人的・非公開利用" in skill
+    assert "https://coefont.cloud/maker/terms" in skill
+    assert "https://coefont.cloud/selectPlan" in skill
     config = json.loads((REPO / ".github/mcp.json").read_text())
     assert set(config) == {"mcpServers"}
     server = config["mcpServers"]["talkvideo"]
     assert server["type"] == "stdio"
     assert "--enable-diagnostics" not in server["args"]
     assert not (REPO / ".vscode/mcp.json").exists()
+
+
+def test_official_example_remains_disabled_without_identity_or_secrets():
+    from talkvideo_mcp.config import load_config
+
+    config = load_config(REPO / "examples/official-api.toml.example").coefont
+    assert not config.enabled
+    assert config.voice_id is None
+    assert config.authorization is None
+    assert config.trusted_download_hosts == ()
 
 
 def test_support_is_owned_here_and_original_code_is_mit():
