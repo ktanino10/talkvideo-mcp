@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "talkvideo": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["run", "--locked", "talkvideo-mcp", "serve", "--root", "output"]
+    }
+  }
+}

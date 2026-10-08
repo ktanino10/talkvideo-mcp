@@ -1,0 +1,55 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "talkvideo-mcp"
+version = "0.1.0"
+description = "Independent local-first narration workflow with durable MCP jobs and explicit media gates"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{ name = "ktanino10" }]
+dependencies = [
+  "anyio>=4.10",
+  "mcp==2.3.0",
+  "pydantic>=2.12,<3",
+  "regex>=2024.11.6",
+]
+
+[project.urls]
+Repository = "https://github.com/ktanino10/talkvideo-mcp"
+Issues = "https://github.com/ktanino10/talkvideo-mcp/issues"
+
+[project.scripts]
+talkvideo-mcp = "talkvideo_mcp.cli:main"
+
+[dependency-groups]
+dev = [
+  "hypothesis>=6.140",
+  "mypy>=1.17",
+  "pytest>=8.4",
+  "pytest-asyncio>=1.1",
+  "ruff>=0.12",
+  "types-regex>=2024.11.6",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/talkvideo_mcp"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-ra"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src"]
