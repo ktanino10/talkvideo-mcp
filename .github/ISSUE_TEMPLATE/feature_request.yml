@@ -1,0 +1,27 @@
+name: Feature request
+description: Propose a change for this project's maintainer.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This repository owns its implementation and support. Do not tag or
+        assign third-party authors. New voices, services, models and media
+        need separate authorization and compatibility review.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe the workflow without private scripts or media.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+    validations:
+      required: true
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Rights, privacy, resource and compatibility considerations
+      description: Do not include credentials or permission documents.

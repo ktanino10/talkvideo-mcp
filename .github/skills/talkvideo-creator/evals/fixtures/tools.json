@@ -1,0 +1,731 @@
+[
+  {
+    "name": "talkvideo_get_capabilities",
+    "description": "Read truthful backend availability, limits and review gates. Never generates media.",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {},
+      "title": "EmptyInput"
+    }
+  },
+  {
+    "name": "talkvideo_prepare_script",
+    "description": "Read-only lossless Unicode cue splitting. Default normalization is none; accepts inline cues OR a relative UTF-8 script_file under the configured input root; returns display/spoken tracks, stable cue/chunk IDs and a plan digest. Provider limits are not verified. Does not write or generate audio.",
+    "input_schema": {
+      "type": "object",
+      "$defs": {
+        "ChunkLimits": {
+          "additionalProperties": false,
+          "description": "Host limits, not unverified limits of any speech provider.",
+          "properties": {
+            "graphemes": {
+              "default": 240,
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Graphemes",
+              "type": "integer"
+            },
+            "codepoints": {
+              "default": 1000,
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Codepoints",
+              "type": "integer"
+            },
+            "utf8_bytes": {
+              "default": 4000,
+              "maximum": 4000,
+              "minimum": 1,
+              "title": "Utf8 Bytes",
+              "type": "integer"
+            }
+          },
+          "title": "ChunkLimits",
+          "type": "object"
+        },
+        "CueInput": {
+          "additionalProperties": false,
+          "properties": {
+            "cue_id": {
+              "anyOf": [
+                {
+                  "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,39}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Cue Id"
+            },
+            "display_text": {
+              "maxLength": 20000,
+              "minLength": 1,
+              "title": "Display Text",
+              "type": "string"
+            },
+            "spoken_text": {
+              "anyOf": [
+                {
+                  "maxLength": 20000,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Spoken Text"
+            }
+          },
+          "required": [
+            "display_text"
+          ],
+          "title": "CueInput",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "properties": {
+            "cues": {
+              "type": "array"
+            }
+          },
+          "required": [
+            "cues"
+          ]
+        },
+        {
+          "properties": {
+            "script_file": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "script_file"
+          ]
+        }
+      ],
+      "properties": {
+        "cues": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/CueInput"
+              },
+              "maxItems": 128,
+              "minItems": 1,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cues"
+        },
+        "script_file": {
+          "anyOf": [
+            {
+              "maxLength": 255,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "User-designated UTF-8 file relative to the operator-configured input root.",
+          "title": "Script File"
+        },
+        "normalization": {
+          "default": "none",
+          "enum": [
+            "none",
+            "NFC"
+          ],
+          "title": "Normalization",
+          "type": "string"
+        },
+        "limits": {
+          "$ref": "#/$defs/ChunkLimits"
+        }
+      },
+      "title": "ScriptInput"
+    }
+  },
+  {
+    "name": "talkvideo_save_revision",
+    "description": "Save an immutable script/settings revision under output/<video>/<revision>. No media is generated. Official API use needs separate operator configuration; diagnostics need server opt-in.",
+    "input_schema": {
+      "type": "object",
+      "$defs": {
+        "AudioSettings": {
+          "additionalProperties": false,
+          "properties": {
+            "sample_rate": {
+              "const": 16000,
+              "default": 16000,
+              "title": "Sample Rate",
+              "type": "integer"
+            },
+            "channels": {
+              "const": 1,
+              "default": 1,
+              "title": "Channels",
+              "type": "integer"
+            },
+            "sample_width": {
+              "const": 2,
+              "default": 2,
+              "title": "Sample Width",
+              "type": "integer"
+            },
+            "gap_ms": {
+              "default": 100,
+              "maximum": 1000,
+              "minimum": 0,
+              "title": "Gap Ms",
+              "type": "integer"
+            }
+          },
+          "title": "AudioSettings",
+          "type": "object"
+        },
+        "ChunkLimits": {
+          "additionalProperties": false,
+          "description": "Host limits, not unverified limits of any speech provider.",
+          "properties": {
+            "graphemes": {
+              "default": 240,
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Graphemes",
+              "type": "integer"
+            },
+            "codepoints": {
+              "default": 1000,
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Codepoints",
+              "type": "integer"
+            },
+            "utf8_bytes": {
+              "default": 4000,
+              "maximum": 4000,
+              "minimum": 1,
+              "title": "Utf8 Bytes",
+              "type": "integer"
+            }
+          },
+          "title": "ChunkLimits",
+          "type": "object"
+        },
+        "CueInput": {
+          "additionalProperties": false,
+          "properties": {
+            "cue_id": {
+              "anyOf": [
+                {
+                  "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,39}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Cue Id"
+            },
+            "display_text": {
+              "maxLength": 20000,
+              "minLength": 1,
+              "title": "Display Text",
+              "type": "string"
+            },
+            "spoken_text": {
+              "anyOf": [
+                {
+                  "maxLength": 20000,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Spoken Text"
+            }
+          },
+          "required": [
+            "display_text"
+          ],
+          "title": "CueInput",
+          "type": "object"
+        },
+        "ScriptInput": {
+          "additionalProperties": false,
+          "oneOf": [
+            {
+              "properties": {
+                "cues": {
+                  "type": "array"
+                }
+              },
+              "required": [
+                "cues"
+              ]
+            },
+            {
+              "properties": {
+                "script_file": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "script_file"
+              ]
+            }
+          ],
+          "properties": {
+            "cues": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/CueInput"
+                  },
+                  "maxItems": 128,
+                  "minItems": 1,
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Cues"
+            },
+            "script_file": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "User-designated UTF-8 file relative to the operator-configured input root.",
+              "title": "Script File"
+            },
+            "normalization": {
+              "default": "none",
+              "enum": [
+                "none",
+                "NFC"
+              ],
+              "title": "Normalization",
+              "type": "string"
+            },
+            "limits": {
+              "$ref": "#/$defs/ChunkLimits"
+            }
+          },
+          "title": "ScriptInput",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "video_name": {
+          "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+          "title": "Video Name",
+          "type": "string"
+        },
+        "script": {
+          "$ref": "#/$defs/ScriptInput"
+        },
+        "expected_plan_digest": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Expected Plan Digest",
+          "type": "string"
+        },
+        "backend": {
+          "default": "production",
+          "enum": [
+            "production",
+            "diagnostic"
+          ],
+          "title": "Backend",
+          "type": "string"
+        },
+        "settings": {
+          "$ref": "#/$defs/AudioSettings"
+        }
+      },
+      "required": [
+        "video_name",
+        "script",
+        "expected_plan_digest"
+      ],
+      "title": "SaveRevisionInput"
+    }
+  },
+  {
+    "name": "talkvideo_get_revision",
+    "description": "Read an immutable revision, display/spoken text and cue IDs; verify its digest.",
+    "input_schema": {
+      "type": "object",
+      "$defs": {
+        "RevisionRef": {
+          "additionalProperties": false,
+          "properties": {
+            "video_name": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+              "title": "Video Name",
+              "type": "string"
+            },
+            "revision_id": {
+              "pattern": "^r-[0-9a-f]{32}$",
+              "title": "Revision Id",
+              "type": "string"
+            }
+          },
+          "required": [
+            "video_name",
+            "revision_id"
+          ],
+          "title": "RevisionRef",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "ref": {
+          "$ref": "#/$defs/RevisionRef"
+        }
+      },
+      "required": [
+        "ref"
+      ],
+      "title": "RevisionInput"
+    }
+  },
+  {
+    "name": "talkvideo_start_audio_job",
+    "description": "Start/return a durable sequential audio job and return immediately. Diagnostics preview at most 3 chunks; official speech previews one <=80-codepoint chunk, with actual audio capped at 30 seconds. Full audio needs both reviews. Default production is disabled. An explicitly operator-authorized official API may transmit text and incur charges; Maker is never used. Repeated start returns the same job; use resume.",
+    "input_schema": {
+      "type": "object",
+      "$defs": {
+        "RevisionRef": {
+          "additionalProperties": false,
+          "properties": {
+            "video_name": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+              "title": "Video Name",
+              "type": "string"
+            },
+            "revision_id": {
+              "pattern": "^r-[0-9a-f]{32}$",
+              "title": "Revision Id",
+              "type": "string"
+            }
+          },
+          "required": [
+            "video_name",
+            "revision_id"
+          ],
+          "title": "RevisionRef",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "ref": {
+          "$ref": "#/$defs/RevisionRef"
+        },
+        "stage": {
+          "default": "preview",
+          "enum": [
+            "preview",
+            "full"
+          ],
+          "title": "Stage",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ref"
+      ],
+      "title": "StartInput"
+    }
+  },
+  {
+    "name": "talkvideo_start_video_job",
+    "description": "Start/return a local diagnostic test-pattern MP4 job from validated audio. Not face animation or lip-sync. Full video also needs a video-preview review. Real-person generation is unavailable; no footage is accepted or uploaded.",
+    "input_schema": {
+      "type": "object",
+      "$defs": {
+        "RevisionRef": {
+          "additionalProperties": false,
+          "properties": {
+            "video_name": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+              "title": "Video Name",
+              "type": "string"
+            },
+            "revision_id": {
+              "pattern": "^r-[0-9a-f]{32}$",
+              "title": "Revision Id",
+              "type": "string"
+            }
+          },
+          "required": [
+            "video_name",
+            "revision_id"
+          ],
+          "title": "RevisionRef",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "ref": {
+          "$ref": "#/$defs/RevisionRef"
+        },
+        "stage": {
+          "default": "preview",
+          "enum": [
+            "preview",
+            "full"
+          ],
+          "title": "Stage",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ref"
+      ],
+      "title": "StartInput"
+    }
+  },
+  {
+    "name": "talkvideo_get_job",
+    "description": "Read durable state, progress, remaining action and failure classification by job ID.",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "job_id": {
+          "pattern": "^j-[0-9a-f]{32}$",
+          "title": "Job Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "job_id"
+      ],
+      "title": "JobInput"
+    }
+  },
+  {
+    "name": "talkvideo_cancel_job",
+    "description": "Cancel a queued/running job and reap its local process group. Keeps completed chunks. A possibly submitted external request is not automatically retried.",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "job_id": {
+          "pattern": "^j-[0-9a-f]{32}$",
+          "title": "Job Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "job_id"
+      ],
+      "title": "JobInput"
+    }
+  },
+  {
+    "name": "talkvideo_resume_job",
+    "description": "Resume the same immutable job after checking hashes, settings and review receipts. Keeps POST/download budgets and persisted Retry-After; never repeats ambiguous POSTs. Existing files resume by GET/local normalization only. Edits need a new revision.",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "job_id": {
+          "pattern": "^j-[0-9a-f]{32}$",
+          "title": "Job Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "job_id"
+      ],
+      "title": "JobInput"
+    }
+  },
+  {
+    "name": "talkvideo_inspect_output",
+    "description": "Read/verify hashes, PCM frames, assembly/timing and paginated artifact metadata. Selected MP4s are fully decoded with packet clock/frame checks. Raw/normalized audio hashes are verified. This is not a perceptual quality review.",
+    "input_schema": {
+      "type": "object",
+      "$defs": {
+        "RevisionRef": {
+          "additionalProperties": false,
+          "properties": {
+            "video_name": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+              "title": "Video Name",
+              "type": "string"
+            },
+            "revision_id": {
+              "pattern": "^r-[0-9a-f]{32}$",
+              "title": "Revision Id",
+              "type": "string"
+            }
+          },
+          "required": [
+            "video_name",
+            "revision_id"
+          ],
+          "title": "RevisionRef",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "ref": {
+          "$ref": "#/$defs/RevisionRef"
+        },
+        "offset": {
+          "default": 0,
+          "maximum": 1000,
+          "minimum": 0,
+          "title": "Offset",
+          "type": "integer"
+        },
+        "limit": {
+          "default": 20,
+          "maximum": 50,
+          "minimum": 1,
+          "title": "Limit",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "ref"
+      ],
+      "title": "InspectInput"
+    }
+  },
+  {
+    "name": "talkvideo_revise_cues",
+    "description": "Create a new revision for targeted cue edits. Keeps cue IDs; copies only verified unchanged audio chunks. Invalidates assemblies, downstream timing and all approvals.",
+    "input_schema": {
+      "type": "object",
+      "$defs": {
+        "CueEdit": {
+          "additionalProperties": false,
+          "properties": {
+            "cue_id": {
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,39}$",
+              "title": "Cue Id",
+              "type": "string"
+            },
+            "display_text": {
+              "anyOf": [
+                {
+                  "maxLength": 20000,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Display Text"
+            },
+            "spoken_text": {
+              "anyOf": [
+                {
+                  "maxLength": 20000,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Spoken Text"
+            }
+          },
+          "required": [
+            "cue_id"
+          ],
+          "title": "CueEdit",
+          "type": "object"
+        },
+        "RevisionRef": {
+          "additionalProperties": false,
+          "properties": {
+            "video_name": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+              "title": "Video Name",
+              "type": "string"
+            },
+            "revision_id": {
+              "pattern": "^r-[0-9a-f]{32}$",
+              "title": "Revision Id",
+              "type": "string"
+            }
+          },
+          "required": [
+            "video_name",
+            "revision_id"
+          ],
+          "title": "RevisionRef",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "ref": {
+          "$ref": "#/$defs/RevisionRef"
+        },
+        "expected_revision_digest": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Expected Revision Digest",
+          "type": "string"
+        },
+        "edits": {
+          "items": {
+            "$ref": "#/$defs/CueEdit"
+          },
+          "maxItems": 128,
+          "minItems": 1,
+          "title": "Edits",
+          "type": "array"
+        }
+      },
+      "required": [
+        "ref",
+        "expected_revision_digest",
+        "edits"
+      ],
+      "title": "ReviseInput"
+    }
+  }
+]

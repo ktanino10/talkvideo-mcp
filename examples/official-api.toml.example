@@ -1,0 +1,21 @@
+# Disabled example only. No real voice, download host, authorization or credential is supplied.
+# Copy to gitignored local/official-api.toml only after the operator confirms an eligible
+# official API contract, this voice's private-use permission, and any API charges.
+[coefont]
+enabled = false
+trusted_download_hosts = []
+normalize_wav = false
+# voice_id = "OPERATOR-SUPPLIED-AUTHORIZED-UUID"
+
+# Exact HTTPS download hosts must be established by the operator; no wildcard/bucket is guessed.
+# [coefont.authorization]
+# api_contract_reference = "OPERATOR'S CONFIRMED OFFICIAL API CONTRACT"
+# voice_permission_reference = "OPERATOR'S CONFIRMED PRIVATE-GENERATION PERMISSION"
+# paid_api_use_confirmed = false
+
+[coefont.options]
+speed = 1.0
+pitch = 0.0
+kuten = 0.5
+volume = 1.0
+# toten = 0.2
