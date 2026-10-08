@@ -96,14 +96,22 @@ See the [official Copilot CLI setup documentation](https://docs.github.com/en/co
 ## Production gates and review
 
 No production speech provider, endpoint, credentials, footage input, model
-download or model execution is wired. Public website availability and
-historical non-public endpoints do not establish automated-use permission.
-Clip-reuse permission does not imply permission for newly synthesized
-statements. Non-monetization does not remove these requirements.
+download or model execution is wired.
 
-A future production backend needs independently verified provider/voice/
-likeness/media permissions, model licensing, resource limits, local platform
-compatibility and perceptual evaluation. Wav2Lip's legacy dependencies and
+**The Hiroyuki Maker route must not be automated under its published terms.**
+The [Maker-specific terms](https://coefont.cloud/maker/terms), checked on
+2026-10-08, prohibit automated use in Article 3(8). The personal
+noncommercial/non-profit allowance in Article 2(4) remains subject to the
+prohibitions, including abnormal server load (Article 3(6)) and infringement
+of portrait, privacy and intellectual-property rights (Article 3(2)).
+Public availability, a review flag, or older/generic CoeFont terms do not
+override these Maker-specific restrictions.
+
+A future production backend would require a **separately authorized,
+supported provider/integration**, plus independently verified voice/likeness/
+media permissions, model licensing, resource limits, local platform
+compatibility and perceptual evaluation. Clip-reuse permission does not imply
+permission for newly synthesized statements. Wav2Lip's legacy dependencies and
 separate restrictive terms, and MuseTalk's documented CUDA-oriented path,
 are not evidence of usable Apple Silicon/MPS support. This release neither
 downloads nor executes those models.
