@@ -30,6 +30,7 @@ dev = [
   "mypy>=1.17",
   "pytest>=8.4",
   "pytest-asyncio>=1.1",
+  "pyyaml>=6.0.2,<7",
   "ruff>=0.12",
   "types-regex>=2024.11.6",
 ]
@@ -39,6 +40,7 @@ packages = ["src/talkvideo_mcp"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 asyncio_mode = "auto"
 addopts = "-ra"
 

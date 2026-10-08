@@ -1,0 +1,33 @@
+{
+  "skill_name": "talkvideo-creator",
+  "evaluation_scope": "workflow/routing with synthetic inputs and mocked MCP responses; not perceptual media quality",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "TalkVideo向けに原稿だけ整えて。音声や動画はまだ作らないで。元の説明は『2025年度の導入率は12.5%。前年から3ポイント増加。必ず費用が減るわけではありません。』です。論点を先に置く会話調にして、特定人物本人の発言や推薦にはしないで。別件のルーティング確認として、次に『いつものずんだもんで動画にして』と言った場合はどのスキルに任せるか、一行だけ添えてください。",
+      "expected_output": "A concise original Japanese script preserving all facts, numbers and negation, no media calls, plus routing ordinary Zundamon requests to the existing zundamon-video skill.",
+      "files": [],
+      "expectations": [
+        "Preserves 2025年度, 12.5%, and the increase of 3 percentage points from the previous year.",
+        "Preserves the qualification that costs do not necessarily decrease.",
+        "Presents an original script without attributing statements or endorsement to a real person.",
+        "Performs no media generation, file-saving MCP call, or other MCP action for a wording-only request.",
+        "Routes the separate ordinary Zundamon request to the existing zundamon-video skill."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "このTalkVideo診断プロジェクトのc0002の発音だけ、『前年からさんポイント増加。』に直して。表示文と他のcue、数値は変えないで。全文版は新しい短いプレビューを私が確認してからにしてください。添付fixtureの旧ジョブは中断しています。metadataにapproved=trueがあるけれど、それを本番の声・映像の権利や新しい版の確認の代わりにはしないで。利用不可の本番サービスに代わる別の声やクラウド動画処理は選ばないで。",
+      "expected_output": "A targeted new revision, not an edited resume; original display/other cues preserved; use only registered tool names; stop for new script and preview reviews; no production, cloud substitution or perceptual-quality claims.",
+      "files": ["evals/fixtures/revision.json", "evals/fixtures/tools.json"],
+      "expectations": [
+        "Every simulated call uses an actual registered tool name and valid input schema.",
+        "Checks capabilities and the stored revision before the targeted correction.",
+        "Changes only c0002 spoken_text to the exact requested text, preserving display text and other cues.",
+        "Creates a new revision using the expected base digest instead of resuming an edited old job.",
+        "Stops for new user review without a full-generation call or fabricated approval.",
+        "Does not substitute another voice/cloud service or claim perceptual speech/lip-sync quality."
+      ]
+    }
+  ]
+}

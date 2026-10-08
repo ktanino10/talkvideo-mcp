@@ -1,0 +1,36 @@
+name: Bug report
+description: Report a reproducible problem in this independent project.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Support belongs to ktanino10/talkvideo-mcp, not to TarakoTalk, CoeFont,
+        or original authors. Do not attach private scripts, credentials, logs
+        with personal paths, real-person media, or model weights.
+  - type: input
+    id: version
+    attributes:
+      label: Version and operating system
+      placeholder: Package version, Python version, operating system
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal synthetic reproduction
+      description: Include the registered tool name and non-sensitive input.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior and error code
+      description: Redact private data. Production gates are intentional.
+    validations:
+      required: true

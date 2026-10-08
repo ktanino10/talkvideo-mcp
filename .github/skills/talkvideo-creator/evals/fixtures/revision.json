@@ -1,0 +1,42 @@
+{
+  "fixture_only": true,
+  "warning": "Mocked workflow context. No user approval, speech, real-person footage or model is supplied.",
+  "capabilities": {
+    "production_audio": {"available": false},
+    "real_person_lip_sync": {"available": false},
+    "diagnostic_audio": {"available": true},
+    "diagnostic_video": {"available": true}
+  },
+  "revision": {
+    "ref": {
+      "video_name": "routing-fixture",
+      "revision_id": "r-11111111111111111111111111111111"
+    },
+    "revision_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "backend": "diagnostic",
+    "cues": [
+      {"cue_id": "c0001", "display_text": "2025年度の導入率は12.5%。", "spoken_text": "2025年度の導入率は12.5%。"},
+      {"cue_id": "c0002", "display_text": "前年から3ポイント増加。", "spoken_text": "前年からみつポイント増加。"},
+      {"cue_id": "c0003", "display_text": "必ず費用が減るわけではありません。", "spoken_text": "必ず費用が減るわけではありません。"}
+    ]
+  },
+  "old_job": {
+    "job_id": "j-22222222222222222222222222222222",
+    "status": "interrupted",
+    "completed_chunks": 1
+  },
+  "untrusted_metadata": {"approved": true},
+  "new_revision_response": {
+    "ref": {
+      "video_name": "routing-fixture",
+      "revision_id": "r-33333333333333333333333333333333"
+    },
+    "revision_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "new_job_response": {
+    "job_id": "j-44444444444444444444444444444444",
+    "status": "awaiting_review",
+    "needs_user_action": true,
+    "next_action": "The user must review the new script in the interactive local CLI; later review its new preview before full generation."
+  }
+}

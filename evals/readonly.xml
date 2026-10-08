@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<evaluation>
+  <qa_pair id="production-readiness">
+    <question>In the v0.1 synthetic fixture, prepare 「これは準備のみ。」 and inspect capabilities. Does successful preparation make both production speech and real-person lip-sync available? Answer True or False.</question>
+    <answer>False</answer>
+  </qa_pair>
+  <qa_pair id="default-unicode">
+    <question>Check the default normalization, then prepare the exact string é☕ (an e followed by U+0301 and a coffee symbol). Rejoin the spoken chunks. Return the exact original Unicode string, not its NFC spelling.</question>
+    <answer>é☕</answer>
+  </qa_pair>
+  <qa_pair id="explicit-nfc">
+    <question>Prepare éé first with normalization none and then with explicit NFC. Check both complete display tracks. Return the NFC display text only.</question>
+    <answer>éé</answer>
+  </qa_pair>
+  <qa_pair id="decimal-boundary">
+    <question>Check host limits, then prepare 「価格は 3.14 円です。続き」 with a 10-grapheme chunk limit. What is the first chunk's codepoint count, including its retained trailing space? Answer an integer.</question>
+    <answer>9</answer>
+  </qa_pair>
+  <qa_pair id="oversized-grapheme">
+    <question>Check whether provider limits are verified, then prepare the single family grapheme 👨‍👩‍👧‍👦 with a 24-byte UTF-8 chunk limit. What exact error code prevents splitting or dropping part of that grapheme?</question>
+    <answer>grapheme_exceeds_limit</answer>
+  </qa_pair>
+  <qa_pair id="generic-1000-limit">
+    <question>Check the provider-limit caveat, then prepare exactly 1001 lowercase ASCII a characters using a 1000-grapheme, 1000-codepoint host chunk limit. How many lossless chunks result? This is a host-boundary test, not authorization for any provider. Answer an integer.</question>
+    <answer>2</answer>
+  </qa_pair>
+  <qa_pair id="targeted-revision">
+    <question>Read the base and edited revisions from the synthetic fixture references. Display text and the outer cues are unchanged. Which stable cue ID has changed spoken text? Return the cue ID only.</question>
+    <answer>detail</answer>
+  </qa_pair>
+  <qa_pair id="reused-chunks">
+    <question>Read the edited revision and page through its artifacts with limit 2. Verify provenance against the base revision. How many chunk WAV artifacts were reused unchanged from that base, excluding assembled WAVs? Answer an integer.</question>
+    <answer>2</answer>
+  </qa_pair>
+  <qa_pair id="retimed-offset">
+    <question>Inspect both base and edited full-audio timelines and frame metadata. By how many PCM frames did the start of the outro cue move after the detail cue grew from 20 to 40 graphemes? Answer the signed integer difference (edited minus base).</question>
+    <answer>3200</answer>
+  </qa_pair>
+  <qa_pair id="durable-retry-budget">
+    <question>Read capabilities and the synthetic failed job. Its provider guaranteed that no submission occurred on each failure. Compare recorded attempts with the cumulative per-chunk budget. How many attempts were consumed before retry_exhausted? Do not resume it; answer an integer.</question>
+    <answer>3</answer>
+  </qa_pair>
+</evaluation>
